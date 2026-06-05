@@ -33,20 +33,26 @@ function Admin() {
     try {
       setLoading(true);
 
-      const response = await axios.post(
-        `${API_URL}/upload-pdf`,
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      const response = await axios.post(`${API_URL}/upload-pdf`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.data.erro) {
+        setErro(response.data.erro);
+        setTextoExtraido(response.data.texto_extraido || "");
+        return;
+      }
+
+      setArquivoOriginal(response.data.arquivo_original || file.name);
+
+      setSucesso(
+        `Classificação atualizada com sucesso! ${response.data.total_participantes} participantes importados.`
       );
 
-      setArquivoOriginal(response.data.arquivo_original);
-      setTextoExtraido(response.data.texto_extraido);
-      setSucesso("PDF enviado e processado com sucesso!");
+      setFile(null);
     } catch (error) {
       console.error(error);
       setErro("Erro ao enviar o PDF. Verifique se o backend está rodando.");
@@ -115,9 +121,7 @@ function Admin() {
     return (
       <main className="min-h-screen bg-slate-950 text-white flex items-center justify-center px-4">
         <section className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6">
-          <h1 className="text-3xl font-bold mb-2">
-            🎥 Central VAR
-          </h1>
+          <h1 className="text-3xl font-bold mb-2">🎥 Central VAR</h1>
 
           <p className="text-slate-300 mb-5">
             Acesso restrito à comissão de apuração do bolão.
@@ -161,8 +165,15 @@ function Admin() {
           </h1>
 
           <p className="text-slate-300 mt-2">
-            Envie o PDF da rodada para extrair os dados da classificação.
+            Envie o PDF da rodada para atualizar a classificação pública.
           </p>
+
+          <button
+            onClick={sair}
+            className="mt-4 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl px-4 py-2 transition"
+          >
+            Sair do admin
+          </button>
         </header>
 
         <section className="bg-slate-900 border border-slate-800 rounded-2xl p-5 mb-6">
@@ -190,7 +201,7 @@ function Admin() {
         </section>
 
         <section className="bg-slate-900 border border-slate-800 rounded-2xl p-5 mb-6">
-          <h2 className="text-xl font-bold mb-4">Enviar PDF</h2>
+          <h2 className="text-xl font-bold mb-4">Atualizar classificação</h2>
 
           <label className="block border-2 border-dashed border-slate-700 rounded-2xl p-6 text-center cursor-pointer hover:border-emerald-500 transition">
             <input
@@ -211,7 +222,7 @@ function Admin() {
               <div>
                 <p className="font-semibold">{file.name}</p>
                 <p className="text-slate-400 text-sm mt-1">
-                  Clique em processar para enviar.
+                  Clique em atualizar classificação para enviar.
                 </p>
               </div>
             ) : (
@@ -231,7 +242,9 @@ function Admin() {
             disabled={loading}
             className="mt-5 w-full bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-700 disabled:cursor-not-allowed text-slate-950 font-bold rounded-2xl px-4 py-3 transition"
           >
-            {loading ? "Processando PDF..." : "Processar PDF"}
+            {loading
+              ? "Atualizando classificação..."
+              : "Atualizar classificação"}
           </button>
 
           {erro && (
@@ -251,7 +264,9 @@ function Admin() {
           <section className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-4">
               <div>
-                <h2 className="text-xl font-bold">Prévia do texto extraído</h2>
+                <h2 className="text-xl font-bold">
+                  Texto extraído para análise
+                </h2>
                 <p className="text-slate-400 text-sm">
                   Arquivo: {arquivoOriginal}
                 </p>
