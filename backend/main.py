@@ -46,67 +46,106 @@ def validar_admin(authorization: str = Header(None)):
         raise HTTPException(status_code=403, detail="Token inválido")
 
 
-def extrair_ranking_do_texto(texto):
-    participantes = []
+def converter_inteiro(tokens):
+    if not tokens:
+        return None
 
-    linhas = [
-        linha.strip()
-        for linha in texto.splitlines()
-        if linha.strip()
-    ]
+    valor = "".join(tokens)
+    valor = valor.replace("−", "-").replace("–", "-").strip()
 
-    ignorar = {
-        "pos",
-        "partiticipantes",
-        "participantes",
-        "pontos",
-        "na mosca",
-        "na mosca (em cheio)",
-        "tiro certo",
-        "tiro certo (desfecho)",
-        "o patriota",
-        "classificação",
-        "classificacao",
-    }
+    if re.fullmatch(r"-?\d+", valor):
+        return int(valor)
 
-    linhas = [
-        linha for linha in linhas
-        if linha.lower() not in ignorar
-    ]
+    return None
 
-    i = 0
 
-    while i < len(linhas):
-        pos_match = re.match(r"^(\d+)°?$", linhas[i])
+def agrupar_linhas(words, tolerancia=3):
+    words = sorted(words, key=lambda w: (w[1], w[0]))
+    linhas = []
 
-        if not pos_match:
-            i += 1
-            continue
+    for word in words:
+        x0, y0, x1, y1, texto, *_ = word
 
-        try:
-            pos = int(pos_match.group(1))
-            nome = linhas[i + 1].strip()
-            pontos = int(linhas[i + 2])
-            mosca = int(linhas[i + 3])
-            tiro = int(linhas[i + 4])
-            patriota = int(linhas[i + 5])
+        adicionou = False
 
-            participantes.append({
-                "pos": pos,
-                "nome": nome,
-                "pontos": pontos,
-                "mosca": mosca,
-                "tiro": tiro,
-                "patriota": patriota,
+        for linha in linhas:
+            if abs(linha["y"] - y0) <= tolerancia:
+                linha["words"].append(word)
+                linha["y"] = (linha["y"] + y0) / 2
+                adicionou = True
+                break
+
+        if not adicionou:
+            linhas.append({
+                "y": y0,
+                "words": [word]
             })
 
-            i += 6
+    return sorted(linhas, key=lambda linha: linha["y"])
 
-        except (IndexError, ValueError):
-            i += 1
+
+def extrair_ranking_do_pdf(file_path):
+    participantes = []
+    pos_atual = None
+
+    with fitz.open(file_path) as pdf:
+        for page in pdf:
+            words = page.get_text("words")
+            linhas = agrupar_linhas(words)
+
+            for linha in linhas:
+                words_linha = sorted(linha["words"], key=lambda w: w[0])
+
+                def coluna(x_inicio, x_fim):
+                    return [
+                        w[4]
+                        for w in words_linha
+                        if x_inicio <= w[0] < x_fim
+                    ]
+
+                for token in coluna(50, 100):
+                    match_pos = re.match(r"^(\d+)º?$", token)
+                    if match_pos:
+                        pos_atual = int(match_pos.group(1))
+                        break
+
+                nome = " ".join(coluna(100, 230)).strip()
+
+                if not nome or nome.lower() in ["participantes"]:
+                    continue
+
+                pontos = converter_inteiro(coluna(230, 270))
+                em_cheio = converter_inteiro(coluna(275, 325))
+                desfechos = converter_inteiro(coluna(325, 380))
+                erros = converter_inteiro(coluna(385, 430))
+                delta_pts = converter_inteiro(coluna(440, 485))
+                variacao = converter_inteiro(coluna(495, 540))
+
+                if None in [
+                    pontos,
+                    em_cheio,
+                    desfechos,
+                    erros,
+                    delta_pts,
+                    variacao,
+                ]:
+                    continue
+
+                if pos_atual is None:
+                    continue
+
+                participantes.append({
+                    "pos": pos_atual,
+                    "nome": nome,
+                    "pontos": pontos,
+                    "em_cheio": em_cheio,
+                    "desfechos": desfechos,
+                    "erros": erros,
+                    "delta_pts": delta_pts,
+                    "variacao": variacao,
+                })
 
     return participantes
-
 
 @app.get("/")
 def home():
@@ -154,7 +193,7 @@ async def upload_pdf(
         for page in pdf:
             texto_extraido += page.get_text()
 
-    participantes = extrair_ranking_do_texto(texto_extraido)
+    participantes = extrair_ranking_do_pdf(file_path)
 
     if not participantes:
         return {

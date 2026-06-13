@@ -17,6 +17,14 @@ function formatarVariacao(valor) {
   return "➖";
 }
 
+function formatarDeltaPts(valor) {
+  const delta = Number(valor || 0);
+
+  if (delta > 0) return `+${delta}`;
+  if (delta < 0) return `${delta}`;
+  return "0";
+}
+
 function Ranking() {
   const [busca, setBusca] = useState("");
   const [participantes, setParticipantes] = useState([]);
@@ -114,14 +122,19 @@ function Ranking() {
       (a, b) => Number(a.variacao || 0) - Number(b.variacao || 0)
     )[0] || null;
 
-  const reiDaMosca =
+  const reiDoEmCheio =
     [...participantes].sort(
-      (a, b) => Number(b.mosca || 0) - Number(a.mosca || 0)
+      (a, b) => Number(b.em_cheio || 0) - Number(a.em_cheio || 0)
     )[0] || null;
 
-  const patriota =
+  const melhorDesfechos =
     [...participantes].sort(
-      (a, b) => Number(b.patriota || 0) - Number(a.patriota || 0)
+      (a, b) => Number(b.desfechos || 0) - Number(a.desfechos || 0)
+    )[0] || null;
+
+  const menorErros =
+    [...participantes].sort(
+      (a, b) => Number(a.erros || 0) - Number(b.erros || 0)
     )[0] || null;
 
   const maiorPontuacao = Number(lider?.pontos || 0);
@@ -134,32 +147,14 @@ function Ranking() {
       } pontos.`
     );
 
-    if (
-      maiorSubida &&
-      Number(maiorSubida.variacao || 0) > 0 &&
-      maiorSubida.nome !== lider?.nome
-    ) {
+    if (maiorSubida && Number(maiorSubida.variacao || 0) > 0) {
       textos.push(
         `${maiorSubida.nome} foi o grande destaque da rodada e subiu ${maiorSubida.variacao
         } posições.`
       );
     }
 
-    if (
-      maiorSubida &&
-      Number(maiorSubida.variacao || 0) > 0 &&
-      maiorSubida.nome === lider?.nome
-    ) {
-      textos.push(
-        `Além de liderar, ${maiorSubida.nome} também foi o destaque da rodada, subindo ${maiorSubida.variacao} posições.`
-      );
-    }
-
-    if (
-      maiorQueda &&
-      Number(maiorQueda.variacao || 0) < 0 &&
-      maiorQueda.nome !== lider?.nome
-    ) {
+    if (maiorQueda && Number(maiorQueda.variacao || 0) < 0) {
       textos.push(
         `${maiorQueda.nome} teve a maior queda da rodada, perdendo ${Math.abs(
           maiorQueda.variacao
@@ -167,26 +162,17 @@ function Ranking() {
       );
     }
 
-    if (reiDaMosca && reiDaMosca.nome !== lider?.nome) {
+    if (reiDoEmCheio) {
       textos.push(
-        `${reiDaMosca.nome} lidera o quesito Na Mosca com ${reiDaMosca.mosca || 0
-        } placares exatos.`
+        `${reiDoEmCheio.nome} lidera o quesito Em Cheio com ${reiDoEmCheio.em_cheio || 0
+        } acertos.`
       );
     }
 
-    if (reiDaMosca && reiDaMosca.nome === lider?.nome) {
+    if (melhorDesfechos) {
       textos.push(
-        `${reiDaMosca.nome} também lidera o quesito Na Mosca, mostrando precisão nos placares.`
-      );
-    }
-
-    if (
-      patriota &&
-      patriota.nome !== lider?.nome &&
-      patriota.nome !== reiDaMosca?.nome
-    ) {
-      textos.push(
-        `${patriota.nome} segue como destaque nos jogos da seleção brasileira.`
+        `${melhorDesfechos.nome} aparece forte nos desfechos com ${melhorDesfechos.desfechos || 0
+        } acertos.`
       );
     }
 
@@ -246,9 +232,9 @@ function Ranking() {
           </div>
 
           <div className="bg-slate-900 rounded-2xl p-4 border border-slate-800">
-            <p className="text-slate-400 text-sm">O Patriota</p>
+            <p className="text-slate-400 text-sm">Rei do Em Cheio</p>
             <h2 className="text-xl font-bold mt-1">
-              🇧🇷 {patriota?.nome || "-"}
+              🎯 {reiDoEmCheio?.nome || "-"}
             </h2>
           </div>
         </section>
@@ -260,24 +246,28 @@ function Ranking() {
 
           <div className="space-y-3">
             <div>
-              🚀 <strong>Destaque:</strong>{" "}
-              {maiorSubida?.nome || "-"}
-              {" "}
-              ({formatarVariacao(maiorSubida?.variacao)})
+              🚀 <strong>Destaque:</strong> {maiorSubida?.nome || "-"} (
+              {formatarVariacao(maiorSubida?.variacao)})
             </div>
 
             <div>
-              📉 <strong>Maior Queda:</strong>{" "}
-              {maiorQueda?.nome || "-"}
-              {" "}
-              ({formatarVariacao(maiorQueda?.variacao)})
+              📉 <strong>Maior Queda:</strong> {maiorQueda?.nome || "-"} (
+              {formatarVariacao(maiorQueda?.variacao)})
             </div>
 
             <div>
-              🎯 <strong>Rei da Mosca:</strong>{" "}
-              {reiDaMosca?.nome || "-"}
-              {" "}
-              ({reiDaMosca?.mosca || 0} acertos)
+              🎯 <strong>Em Cheio:</strong> {reiDoEmCheio?.nome || "-"} (
+              {reiDoEmCheio?.em_cheio || 0} acertos)
+            </div>
+
+            <div>
+              ⚽ <strong>Desfechos:</strong> {melhorDesfechos?.nome || "-"} (
+              {melhorDesfechos?.desfechos || 0} acertos)
+            </div>
+
+            <div>
+              ❌ <strong>Menos Erros:</strong> {menorErros?.nome || "-"} (
+              {menorErros?.erros || 0} erros)
             </div>
           </div>
         </section>
@@ -302,17 +292,18 @@ function Ranking() {
           />
         </section>
 
-        <section className="hidden md:block bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
+        <section className="hidden md:block bg-slate-900 rounded-2xl border border-slate-800 overflow-x-auto">
           <table className="w-full">
             <thead className="bg-slate-800">
               <tr>
                 <th className="text-left p-4">Pos</th>
                 <th className="text-left p-4">Participante</th>
-                <th className="text-left p-4">Pontos</th>
-                <th className="text-left p-4">Variação</th>
-                <th className="text-left p-4">🎯 Na Mosca</th>
-                <th className="text-left p-4">⚽ Tiro Certo</th>
-                <th className="text-left p-4">🇧🇷 Patriota</th>
+                <th className="text-left p-4">PTS</th>
+                <th className="text-left p-4">🎯 Em Cheio</th>
+                <th className="text-left p-4">⚽ Desfechos</th>
+                <th className="text-left p-4">❌ Erros</th>
+                <th className="text-left p-4">Δ Pts</th>
+                <th className="text-left p-4">Δ Pos</th>
               </tr>
             </thead>
 
@@ -324,12 +315,15 @@ function Ranking() {
                   <td className="p-4 font-bold text-emerald-400">
                     {p.pontos}
                   </td>
+                  <td className="p-4">{p.em_cheio}</td>
+                  <td className="p-4">{p.desfechos}</td>
+                  <td className="p-4">{p.erros}</td>
+                  <td className="p-4 font-semibold">
+                    {formatarDeltaPts(p.delta_pts)}
+                  </td>
                   <td className="p-4 font-semibold">
                     {formatarVariacao(p.variacao)}
                   </td>
-                  <td className="p-4">{p.mosca}</td>
-                  <td className="p-4">{p.tiro}</td>
-                  <td className="p-4">{p.patriota}</td>
                 </tr>
               ))}
             </tbody>
@@ -353,26 +347,30 @@ function Ranking() {
               </div>
 
               <div className="mt-3 text-sm font-semibold">
-                Variação: {formatarVariacao(p.variacao)}
+                Δ Pos: {formatarVariacao(p.variacao)}
+              </div>
+
+              <div className="mt-1 text-sm font-semibold">
+                Δ Pts: {formatarDeltaPts(p.delta_pts)}
               </div>
 
               <div className="grid grid-cols-3 gap-2 mt-4 text-sm text-center">
                 <div className="bg-slate-800 rounded-xl p-2">
                   🎯
                   <br />
-                  {p.mosca}
+                  {p.em_cheio}
                 </div>
 
                 <div className="bg-slate-800 rounded-xl p-2">
                   ⚽
                   <br />
-                  {p.tiro}
+                  {p.desfechos}
                 </div>
 
                 <div className="bg-slate-800 rounded-xl p-2">
-                  🇧🇷
+                  ❌
                   <br />
-                  {p.patriota}
+                  {p.erros}
                 </div>
               </div>
             </div>
