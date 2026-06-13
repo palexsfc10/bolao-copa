@@ -1,7 +1,10 @@
 import sqlite3
+import os
 from datetime import datetime
 
-DB_NAME = "data/bolao.db"
+os.makedirs("data", exist_ok=True)
+
+DB_NAME = os.getenv("DB_NAME", "data/bolao.db")
 
 
 def get_connection():
@@ -20,17 +23,27 @@ def criar_tabelas():
             pos INTEGER NOT NULL,
             nome TEXT NOT NULL,
             pontos INTEGER NOT NULL,
-            mosca INTEGER NOT NULL,
-            tiro INTEGER NOT NULL,
-            patriota INTEGER NOT NULL,
+            em_cheio INTEGER DEFAULT 0,
+            desfechos INTEGER DEFAULT 0,
+            erros INTEGER DEFAULT 0,
+            delta_pts INTEGER DEFAULT 0,
             variacao INTEGER DEFAULT 0
         )
     """)
 
-    try:
-        cursor.execute("ALTER TABLE ranking ADD COLUMN variacao INTEGER DEFAULT 0")
-    except sqlite3.OperationalError:
-        pass
+    colunas = {
+        "em_cheio": "INTEGER DEFAULT 0",
+        "desfechos": "INTEGER DEFAULT 0",
+        "erros": "INTEGER DEFAULT 0",
+        "delta_pts": "INTEGER DEFAULT 0",
+        "variacao": "INTEGER DEFAULT 0",
+    }
+
+    for coluna, tipo in colunas.items():
+        try:
+            cursor.execute(f"ALTER TABLE ranking ADD COLUMN {coluna} {tipo}")
+        except sqlite3.OperationalError:
+            pass
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS configuracoes (
@@ -52,26 +65,21 @@ def inserir_dados_iniciais():
 
     if total == 0:
         participantes = [
-            (1, "Jeb", 75, 5, 16, 12, 0),
-            (2, "Marlene", 69, 6, 16, 8, 0),
-            (3, "Florisvaldo", 64, 3, 13, 18, 0),
-            (4, "Piauí", 63, 5, 14, 18, 0),
-            (5, "Ailton (Bahia)", 59, 4, 15, 10, 0),
-            (6, "Pedro", 55, 3, 14, 9, 0),
-            (7, "João", 53, 2, 13, 7, 0),
-            (8, "Ana", 51, 4, 11, 6, 0),
+            (1, "Dennis Bergkamp", 17, 3, 1, 0, 7, 0),
+            (2, "Alexandre", 15, 3, 0, 1, 5, -1),
+            (3, "Branco", 14, 2, 2, 0, 7, 4),
         ]
 
         cursor.executemany("""
             INSERT INTO ranking (
-                pos, nome, pontos, mosca, tiro, patriota, variacao
+                pos, nome, pontos, em_cheio, desfechos, erros, delta_pts, variacao
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, participantes)
 
         cursor.execute("""
             INSERT OR REPLACE INTO configuracoes (chave, valor)
-            VALUES ('ultima_atualizacao', '03/06/2026 às 21:45')
+            VALUES ('ultima_atualizacao', '12/06/2026')
         """)
 
         cursor.execute("""
@@ -88,9 +96,17 @@ def listar_ranking():
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT pos, nome, pontos, mosca, tiro, patriota, variacao
+        SELECT
+            pos,
+            nome,
+            pontos,
+            em_cheio,
+            desfechos,
+            erros,
+            delta_pts,
+            variacao
         FROM ranking
-        ORDER BY pos ASC
+        ORDER BY pos ASC, pontos DESC, nome ASC
     """)
 
     dados = [dict(row) for row in cursor.fetchall()]
@@ -143,49 +159,27 @@ def importar_novo_ranking(novo_ranking):
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT nome, pos FROM ranking")
-
-    ranking_antigo = {
-        row["nome"].strip().lower(): row["pos"]
-        for row in cursor.fetchall()
-    }
-
     ranking_processado = []
 
     for item in novo_ranking:
-        nome = item["nome"].strip()
-        nome_chave = nome.lower()
-
-        pos_nova = int(item["pos"])
-        pontos = int(item["pontos"])
-        mosca = int(item["mosca"])
-        tiro = int(item["tiro"])
-        patriota = int(item["patriota"])
-
-        pos_antiga = ranking_antigo.get(nome_chave)
-
-        if pos_antiga is None:
-            variacao = 0
-        else:
-            variacao = pos_antiga - pos_nova
-
         ranking_processado.append((
-            pos_nova,
-            nome,
-            pontos,
-            mosca,
-            tiro,
-            patriota,
-            variacao,
+            int(item["pos"]),
+            item["nome"].strip(),
+            int(item["pontos"]),
+            int(item.get("em_cheio", 0)),
+            int(item.get("desfechos", 0)),
+            int(item.get("erros", 0)),
+            int(item.get("delta_pts", 0)),
+            int(item.get("variacao", 0)),
         ))
 
     cursor.execute("DELETE FROM ranking")
 
     cursor.executemany("""
         INSERT INTO ranking (
-            pos, nome, pontos, mosca, tiro, patriota, variacao
+            pos, nome, pontos, em_cheio, desfechos, erros, delta_pts, variacao
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     """, ranking_processado)
 
     agora = datetime.now().strftime("%d/%m/%Y às %H:%M")
