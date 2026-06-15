@@ -2,6 +2,16 @@ import { API_URL } from "../config";
 import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 
+import {
+  frasesLanterna,
+  frasesSubida,
+  frasesQueda,
+  frasesLider,
+  frasesEmCheio,
+  frasesErros,
+  montarFrase,
+} from "../utils/frasesBolao";
+
 function medalha(pos) {
   if (pos === 1) return "🥇";
   if (pos === 2) return "🥈";
@@ -122,6 +132,15 @@ function Ranking() {
       (a, b) => Number(a.variacao || 0) - Number(b.variacao || 0)
     )[0] || null;
 
+  const lanternas = [...participantes]
+    .sort((a, b) => Number(b.pos || 0) - Number(a.pos || 0))
+    .slice(0, 3);
+
+  const maisErros =
+    [...participantes].sort(
+      (a, b) => Number(b.erros || 0) - Number(a.erros || 0)
+    )[0] || null;
+
   const reiDoEmCheio =
     [...participantes].sort(
       (a, b) => Number(b.em_cheio || 0) - Number(a.em_cheio || 0)
@@ -192,15 +211,15 @@ function Ranking() {
       <section className="max-w-6xl mx-auto">
         <header className="mb-6">
           <p className="text-sm text-emerald-400 font-semibold">
-            Copa do Mundo 2026
+            Copa do Mundo 2026 • Resenha oficial do bolão
           </p>
 
           <h1 className="text-3xl md:text-5xl font-bold mt-1">
-            🏆 Bolão da Copa
+            🎙️ Central da Corneta
           </h1>
 
           <p className="text-slate-300 mt-2">
-            Classificação geral atualizada após a rodada.
+            Classificação, resenha e zoeira atualizadas após a rodada.
           </p>
 
           <div className="mt-4 bg-slate-900 border border-slate-800 rounded-2xl px-4 py-3 inline-block">
@@ -241,7 +260,7 @@ function Ranking() {
 
         <section className="bg-slate-900 rounded-2xl p-5 border border-slate-800 mb-6">
           <h2 className="text-xl font-bold mb-4">
-            🔥 Movimentações da Rodada
+            🔥 Plantão da Rodada
           </h2>
 
           <div className="space-y-3">
@@ -273,7 +292,7 @@ function Ranking() {
         </section>
 
         <section className="bg-slate-900 rounded-2xl p-5 border border-slate-800 mb-6">
-          <h2 className="text-xl font-bold mb-4">📰 Jornal do Bolão</h2>
+          <h2 className="text-xl font-bold mb-4">📰 Jornal da Corneta</h2>
 
           <div className="space-y-3 text-slate-300 leading-relaxed">
             {jornal.map((linha, index) => (
@@ -282,12 +301,53 @@ function Ranking() {
           </div>
         </section>
 
+        <section className="bg-gradient-to-br from-yellow-500/10 to-red-500/10 rounded-2xl p-5 border border-yellow-500/30 mb-6">
+          <h2 className="text-xl font-bold mb-4">😂 Corneta da Rodada</h2>
+
+          <div className="space-y-3 text-slate-300 leading-relaxed">
+            {lider && <p>👑 {montarFrase(frasesLider, lider)}</p>}
+
+            {maiorSubida && Number(maiorSubida.variacao || 0) > 0 && (
+              <p>🚀 {montarFrase(frasesSubida, maiorSubida)}</p>
+            )}
+
+            {maiorQueda && Number(maiorQueda.variacao || 0) < 0 && (
+              <p>📉 {montarFrase(frasesQueda, maiorQueda)}</p>
+            )}
+
+            {reiDoEmCheio && (
+              <p>🎯 {montarFrase(frasesEmCheio, reiDoEmCheio)}</p>
+            )}
+
+            {maisErros && (
+              <p>🙈 {montarFrase(frasesErros, maisErros)}</p>
+            )}
+          </div>
+        </section>
+
+        <section className="bg-slate-900 rounded-2xl p-5 border border-slate-800 mb-6">
+          <h2 className="text-xl font-bold mb-4">🐢 Zona do Rebaixamento Moral</h2>
+
+          <div className="space-y-3 text-slate-300 leading-relaxed">
+            {lanternas.map((p, index) => (
+              <p key={`${p.pos}-${p.nome}`}>
+                {index === 0 && "🚨 "}
+                {index === 1 && "🐢 "}
+                {index === 2 && "📉 "}
+                <strong>{p.nome}</strong> está em <strong>{p.pos}º</strong> com{" "}
+                <strong>{p.pontos} pts</strong>. {montarFrase(frasesLanterna, p)}
+              </p>
+            ))}
+          </div>
+        </section>
+
+
         <section className="mb-4">
           <input
             type="text"
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
-            placeholder="🔎 Buscar participante..."
+            placeholder="🔎 Buscar corneteiro pelo nome..."
             className="w-full bg-slate-900 border border-slate-800 rounded-2xl px-4 py-3 outline-none focus:border-emerald-500"
           />
         </section>
